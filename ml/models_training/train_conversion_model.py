@@ -68,13 +68,6 @@ def Model_pipeline(num_columns, cat_columns, model):
     return pipeline
 
 
-# def train_model(pipeline, train_df):
-
-#     model = pipeline.fit(train_df)
-
-#     return model
-
-
 
 # metriques d'evaluation
 def evaluate_model(model, test_df):
@@ -121,9 +114,9 @@ def roc_curve_model(model, test_df):
 
     predictions = model.transform(test_df)
 
-    preds = predictions.select("probability", "Conversion").collect()
+    preds = predictions.select("probability", "conversion").collect()
 
-    y_true = [row["Conversion"] for row in preds]
+    y_true = [row["conversion"] for row in preds]
     y_score = [float(row["probability"][1]) for row in preds]
 
     fpr, tpr, _ = roc_curve(y_true, y_score)
