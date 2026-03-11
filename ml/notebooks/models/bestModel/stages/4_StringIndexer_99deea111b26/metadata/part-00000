@@ -1,0 +1,1 @@
+{"class":"org.apache.spark.ml.feature.StringIndexerModel","timestamp":1773145817978,"sparkVersion":"3.5.0","uid":"StringIndexer_99deea111b26","paramMap":{"outputCol":"AdvertisingTool_index","handleInvalid":"keep","inputCol":"AdvertisingTool"},"defaultParamMap":{"outputCol":"StringIndexer_99deea111b26__output","handleInvalid":"error","stringOrderType":"frequencyDesc"}}
