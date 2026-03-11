@@ -17,7 +17,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
-      - "5434:5432"
+      - "5433:5432"
 
   
   # airflow initialisation
@@ -43,17 +43,15 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@postgres/airflow
-      MLFLOW_TRACKING_URI: http://mlflow:5000
-      PYTHONPATH: /app
     volumes:
-      - .:/app
-      - ./airflow_home/dags:/opt/airflow/dags
-      - airflow-logs:/opt/airflow/logs
-      - ./airflow_home/plugins:/opt/airflow/plugins
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
       - ./requirements.txt:/requirements.txt
       - ./ml/data:/opt/airflow/ml/data
     command: >
       bash -c "
+        pip install --no-cache-dir -r /requirements.txt &&
         airflow scheduler &
         airflow webserver
       "
@@ -63,7 +61,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "8081:8080"
+      - "8080:8080"
 
   
   # backend fastAPI
@@ -81,31 +79,15 @@ services:
       - PORT=5432
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - PYTHONPATH=/app
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
     volumes:
       - .:/app
     working_dir: /app
     ports:
-      - "8001:8000"
+      - "8000:8000"
     command: uvicorn backend.app.api.api_auth:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       postgres:
         condition: service_healthy
-
-  # MLflow Tracking Server
-  mlflow:
-    build: .
-    container_name: mlflow
-    restart: always
-    ports:
-      - "5001:5000"
-    environment:
-      - MLFLOW_TRACKING_URI=http://mlflow:5000
-    volumes:
-      - ./mlruns:/app/mlruns
-      - ./mlflow_data:/app/mlflow_data
-    working_dir: /app
-    command: mlflow server --host 0.0.0.0 --port 5000 --backend-store-uri sqlite:///mlflow_data/mlflow.db --default-artifact-root /app/mlruns
 
   # MLflow 
   mlflow:
@@ -120,6 +102,4 @@ services:
 
 volumes:
   postgres-data:
-    driver: local
-  airflow-logs:
     driver: local

@@ -7,7 +7,7 @@ echo "Initialisation de la base de données Airflow..."
 airflow db init
 
 echo "Création de l'utilisateur Admin..."
-airflow users create \
+airflow fab create-admin \
     --username admin \
     --password admin \
     --firstname Admin \

@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 from pyspark.sql import SparkSession
 from pyspark.ml import PipelineModel
 from pyspark.sql import Row
@@ -11,9 +11,9 @@ def dict_to_spark_df(data: dict, spark):
 
 spark = SparkSession.builder.appName("marketing_prediction_service").getOrCreate()
 
-# Calculate absolute path to the model
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-MODEL_PATH = os.path.join(BASE_DIR, "ml", "notebooks", "models", "bestModel")
+# Calculate path to the model relative to project root
+BASE_DIR = Path(__file__).resolve().parents[3]
+MODEL_PATH = str(BASE_DIR / "ml" / "notebooks" / "models" / "bestModel")
 
 loaded_model = PipelineModel.load(MODEL_PATH)
 
