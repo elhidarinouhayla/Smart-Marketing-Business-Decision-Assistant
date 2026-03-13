@@ -1,18 +1,11 @@
-from backend.app.db.database import Base
-from sqlalchemy import Column, ForeignKey, Text
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
 import uuid
+from sqlalchemy import Column, String, Text, ForeignKey
+from backend.app.db.database import Base
+
 
 class Recommendation(Base):
     __tablename__ = "recommendations"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    advice_text = Column(Text)
-    campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"))
-    
-    # Relationship
-    campaign = relationship("Campaign", back_populates="recommendations")
 
-    def generateAdvice(self) -> None:
-        # Method placeholder
-        pass
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    advice_text = Column(Text, nullable=False)  # texte généré par Gemini
+    campaign_id = Column(String, ForeignKey("campaigns.id"), nullable=False)
