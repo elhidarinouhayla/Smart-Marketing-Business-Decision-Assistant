@@ -1,7 +1,6 @@
 from pydantic import BaseModel, ConfigDict
 from uuid import UUID
 from enum import Enum
-from typing import Optional, List
 
 class CampaignStatusEnum(str, Enum):
     DRAFT = "draft"
