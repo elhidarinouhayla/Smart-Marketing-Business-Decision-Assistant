@@ -1,19 +1,12 @@
-from backend.app.db.database import Base
-from sqlalchemy import Column, ForeignKey, Float
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship
 import uuid
+from sqlalchemy import Column, String, Float, ForeignKey
+from backend.app.db.database import Base
+
 
 class Prediction(Base):
     __tablename__ = "predictions"
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    predicted_rate = Column(Float)
-    confidence = Column(Float)
-    campaign_id = Column(UUID(as_uuid=True), ForeignKey("campaigns.id"))
-    
-    # Relationship
-    campaign = relationship("Campaign", back_populates="prediction")
 
-    def runInference(self) -> None:
-        # Method placeholder
-        pass
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    predicted_rate = Column(Float, nullable=False)   # ex: 0.72
+    confidence = Column(Float, nullable=False)        # ex: 0.89
+    campaign_id = Column(String, ForeignKey("campaigns.id"), nullable=False)
