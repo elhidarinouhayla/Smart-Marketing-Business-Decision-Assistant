@@ -4,9 +4,10 @@ from ..config import SECRET_KEY, ALGORITHM
 from passlib.context import CryptContext
 
 
-def create_token(username:str):
+def create_token(username:str, user_id: int):
     paylod = {
-        "sub": username
+        "sub": username,
+        "id" : user_id
         }
     token = jwt.encode(paylod,SECRET_KEY,algorithm=ALGORITHM)
     return token
