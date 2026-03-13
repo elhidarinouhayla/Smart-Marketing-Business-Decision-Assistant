@@ -1,6 +1,5 @@
 from pydantic import BaseModel, ConfigDict
 from uuid import UUID
-from typing import Optional
 
 class PredictionBase(BaseModel):
     predicted_rate: float
