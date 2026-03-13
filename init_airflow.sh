@@ -1,11 +1,13 @@
 #!/bin/bash
 # init_airflow.sh
 
-# Initialiser la DB
+set -e
+
+echo "Initialisation de la base de données Airflow..."
 airflow db init
 
-# Créer l'utilisateur Admin
-airflow users create \
+echo "Création de l'utilisateur Admin..."
+airflow fab create-admin \
     --username admin \
     --password admin \
     --firstname Admin \
@@ -13,3 +15,4 @@ airflow users create \
     --role Admin \
     --email admin@example.com
 
+echo "Airflow initialisé avec succès !"

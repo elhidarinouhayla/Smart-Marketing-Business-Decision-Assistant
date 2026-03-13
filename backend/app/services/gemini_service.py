@@ -1,26 +1,18 @@
 from google import genai
-import sys
-import os
 
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-app_dir = os.path.dirname(current_dir)
-if app_dir not in sys.path:
-    sys.path.insert(0, app_dir)
-
+# Standard absolute imports assuming the root is in PYTHONPATH
 try:
-    from config import GEMINI_API_KEY
-    from schemas.gemini_schema import output_gemini
+    from backend.app.config import GEMINI_API_KEY
+    from backend.app.schemas.gemini_schema import output_gemini
 except ImportError:
+    # Fallback for local testing if running from within backend/app
     try:
-        from ..config import GEMINI_API_KEY
-        from ..schemas.gemini_schema import output_gemini
-    except (ImportError, ValueError):
-        backend_dir = os.path.dirname(app_dir)
-        if backend_dir not in sys.path:
-            sys.path.insert(0, backend_dir)
         from app.config import GEMINI_API_KEY
         from app.schemas.gemini_schema import output_gemini
+    except ImportError:
+        from ..config import GEMINI_API_KEY
+        from ..schemas.gemini_schema import output_gemini
 
 
 def retention_gemini(probability, prediction):
