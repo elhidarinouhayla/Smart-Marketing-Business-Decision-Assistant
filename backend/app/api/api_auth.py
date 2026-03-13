@@ -1,4 +1,4 @@
-from fastapi import FastAPI,HTTPException,Depends
+from fastapi import APIRouter,HTTPException,Depends 
 from backend.app.db.database import Base,engine,get_db
 from sqlalchemy.orm import session
 from backend.app.schemas.user_schema import UserCreate, UserResponse,  UserVerify
@@ -9,22 +9,13 @@ from fastapi.middleware.cors import CORSMiddleware
 
 
 
-app = FastAPI()
+router = APIRouter(prefix="/auth", tags=["Auth"])
 Base.metadata.create_all(bind=engine)
 
 
 
-
-app.add_middleware(
-  CORSMiddleware,
-  allow_origins=["*"],
-  allow_credentials=True,
-  allow_methods=["*"],
-  allow_headers=["*"],
-)
-
 # creation d'un username :
-@app.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=UserResponse)
 def create_user(user:UserCreate, db: session=Depends(get_db)):
     exist = db.query(User).filter(User.username == user.username).first()
 
@@ -44,7 +35,7 @@ def create_user(user:UserCreate, db: session=Depends(get_db)):
 
 
 # verifier l'identifiant et encoder token
-@app.post("/login")
+@router.post("/login")
 def login(user:UserVerify, db: session=Depends(get_db)):
 
     db_user = db.query(User).filter(
@@ -54,7 +45,7 @@ def login(user:UserVerify, db: session=Depends(get_db)):
     if not db_user or not verify_password(user.password,db_user.password):
         raise HTTPException(status_code=400, detail="username or password incorect")
     
-    token = create_token(db_user.username)
+    token = create_token(db_user.username, user_id=db_user.id)
 
     return {"token" : token}
 
