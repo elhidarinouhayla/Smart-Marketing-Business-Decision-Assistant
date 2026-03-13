@@ -1,6 +1,5 @@
 from pydantic import BaseModel, ConfigDict
 from uuid import UUID
-from typing import Optional
 
 class RecommendationBase(BaseModel):
     advice_text: str
