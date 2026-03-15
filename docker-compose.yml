@@ -17,7 +17,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "5434:5432"
 
   
   # airflow initialisation
@@ -30,6 +30,7 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@postgres/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
     volumes:
       - ./init_airflow.sh:/init_airflow.sh
     entrypoint: ["/bin/bash", "/init_airflow.sh"]
@@ -43,12 +44,13 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@postgres/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
       - ./requirements.txt:/requirements.txt
-      - ./ml/data:/opt/airflow/ml/data
+      - ./ml:/opt/airflow/ml
     command: >
       bash -c "
         pip install --no-cache-dir -r /requirements.txt &&
@@ -61,7 +63,7 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "8081:8080"
 
   
   # backend fastAPI
@@ -83,8 +85,8 @@ services:
       - .:/app
     working_dir: /app
     ports:
-      - "8000:8000"
-    command: uvicorn backend.app.api.api_auth:app --host 0.0.0.0 --port 8000 --reload
+      - "8001:8000"
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       postgres:
         condition: service_healthy
@@ -94,7 +96,7 @@ services:
     image: ghcr.io/mlflow/mlflow:v2.17.2
     container_name: mlflow
     ports:
-      - "5000:5000"
+      - "5001:5000"
     command: mlflow ui --host 0.0.0.0
     volumes:
       - ./mlflow_data:/mlflow
