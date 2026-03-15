@@ -1,84 +1,168 @@
 import os
-import sys
 from datetime import datetime
-from airflow import DAG
-from airflow.operators.python import PythonOperator
-import mlflow
-import mlflow.spark
-from pyspark.ml.classification import LogisticRegression
-from pyspark.ml import PipelineModel
+from airflow.decorators import dag, task
 
-# 1. Configuration des chemins (Simplifié)
-PROJECT_PATH = "/home/nouhayla/Desktop/simplon_projects/Smart-Marketing-Business-Decision-Assistant"
-sys.path.append(PROJECT_PATH)
+# chemins 
+DATA_PATH  = "/opt/airflow/ml/data/silver/segment_data"
+TEMP_PATH  = "/opt/airflow/ml/data/temp"
+MODEL_PATH = "/opt/airflow/ml/models/conversion_model"
 
-from ml.models_training.train_conversion_model import (
-    create_spark, split_data, Model_pipeline, evaluate_model, roc_curve_model
+mlflow_experiment = "Conversion_Model"
+
+
+@dag(
+    dag_id="conversion_model_training",
+    start_date=datetime(2026, 3, 15),
+    schedule_interval="@daily",
+    catchup=False,
 )
+def conversion_model_dag():
 
-# Dossier temporaire pour partager les données entre tâches
-DATA_DIR = "/tmp/ml_demo"
-os.makedirs(DATA_DIR, exist_ok=True)
+    # load data
+    @task()
+    def load():
+        import sys
+        sys.path.append("/opt/airflow/ml/models_training") 
+        from ..ml.models_training.train_conversion_model import create_spark, load_data, cast_numeric_columns
+ 
+        os.makedirs(TEMP_PATH, exist_ok=True)
+ 
+        spark = create_spark()
+        df    = load_data(spark, DATA_PATH)
+        df    = cast_numeric_columns(df)
+ 
+        temp_path = f"{TEMP_PATH}/loaded_data"
+        df.write.mode("overwrite").parquet(temp_path)
+        return temp_path
 
-# --- FONCTIONS DES TÂCHES ---
 
-def task_load_and_split():
-    spark = create_spark()
-    # Création de données simples pour la démo
-    df = spark.createDataFrame([(1, 25, 0.8, "A"), (0, 30, 0.2, "B"), (1, 22, 0.9, "A"), (0, 45, 0.1, "C")], 
-                               ["conversion", "age", "score", "segment"])
+    # split data
+    @task()
+    def split(df_path):
+        import sys
+        sys.path.append("/opt/airflow/ml/models_training")
+        from ..ml.models_training.train_conversion_model  import create_spark, load_data, split_data
+ 
+        spark             = create_spark()
+        df                = load_data(spark, df_path)
+        train_df, test_df = split_data(df, test_size=0.2)
+ 
+        train_path = f"{TEMP_PATH}/train_data"
+        test_path  = f"{TEMP_PATH}/test_data"
+ 
+        train_df.write.mode("overwrite").parquet(train_path)
+        test_df.write.mode("overwrite").parquet(test_path)
+ 
+        return {"train_path": train_path, "test_path": test_path}
+ 
+
+
+
+    # train model
+    @task()
+    def training(split_result):
+        import sys
+        import mlflow
+        import mlflow.spark
+        sys.path.append("/opt/airflow/ml/models_training")
+        from ..ml.models_training.train_conversion_model import (
+            create_spark, load_data, model_pipeline,
+            nimeric_cols, categorical_cols
+        )
+        from pyspark.ml.classification import LogisticRegression
+ 
+        spark    = create_spark()
+        train_df = load_data(spark, split_result["train_path"])
+ 
+        lr       = LogisticRegression(featuresCol="features", labelCol="conversion")
+        pipeline = model_pipeline(nimeric_cols, categorical_cols, lr)
+ 
+
+        mlflow.set_experiment(mlflow_experiment)
+        with mlflow.start_run() as run:
+            model = pipeline.fit(train_df)
     
-    train_df, test_df = split_data(df)
+            mlflow.log_param("model_type",   "LogisticRegression")
+            mlflow.log_param("num_features", len(nimeric_cols))
+            mlflow.log_param("cat_features", len(categorical_cols))
+            mlflow.log_param("test_size",    0.2)
     
-    # On sauvegarde sur le disque pour que la tâche suivante puisse les lire
-    train_df.write.mode("overwrite").parquet(f"{DATA_DIR}/train.parquet")
-    test_df.write.mode("overwrite").parquet(f"{DATA_DIR}/test.parquet")
-    spark.stop()
-
-def task_train_model():
-    spark = create_spark()
-    train_df = spark.read.parquet(f"{DATA_DIR}/train.parquet")
+            run_id = run.info.run_id 
     
-    # Entraînement avec tes fonctions
-    lr = LogisticRegression(labelCol="conversion", featuresCol="features")
-    pipeline = Model_pipeline(num_columns=["age", "score"], cat_columns=["segment"], model=lr)
-    model = pipeline.fit(train_df)
+            temp_model_path = f"{TEMP_PATH}/temp_model"
+            model.write().overwrite().save(temp_model_path)
     
-    # Sauvegarde du modèle
-    model.write().overwrite().save(f"{DATA_DIR}/model")
-    spark.stop()
+        return {
+                "model_path": temp_model_path,
+                "test_path" : split_result["test_path"],
+                "run_id"    : run_id
+            }
 
-def task_evaluate_log_mlflow():
-    spark = create_spark()
-    test_df = spark.read.parquet(f"{DATA_DIR}/test.parquet")
-    model = PipelineModel.load(f"{DATA_DIR}/model")
-    
-    # Calcul des métriques
-    metrics = evaluate_model(model, test_df)
-    _, _, roc_auc = roc_curve_model(model, test_df)
-    
-    # --- MLFLOW (Simple & Direct) ---
-    mlflow.set_experiment("Demo_Pipeline")
-    with mlflow.start_run():
-        mlflow.log_metric("accuracy", metrics["accuracy"])
-        mlflow.log_metric("roc_auc", float(roc_auc))
-        mlflow.spark.log_model(model, "model")
-    
-    print("✅ Terminé ! Métriques et Modèle envoyés à MLflow.")
-    spark.stop()
+    # metrics
+    @task()
+    def metrics(training_result):
+        import sys
+        import mlflow
+        sys.path.append("/opt/airflow/ml/models_training")
+        from ..ml.models_training.train_conversion_model import create_spark, load_data, evaluate_model  
+        from pyspark.ml import PipelineModel
+ 
+        spark   = create_spark()
+        model   = PipelineModel.load(training_result["model_path"])
+        test_df = load_data(spark, training_result["test_path"])
+ 
+        result  = evaluate_model(model, test_df)
+ 
+        print(f"Accuracy  : {result['accuracy']:.4f}")
+        print(f"Precision : {result['precision']:.4f}")
+        print(f"Recall    : {result['recall']:.4f}")
+        print(f"F1 Score  : {result['f1_score']:.4f}")
+        print(f"AUC       : {result['auc']:.4f}")
+ 
+        # ✅ logger les métriques dans le même run MLflow
+        mlflow.set_experiment(mlflow_experiment)
+        with mlflow.start_run(run_id=training_result["run_id"]):
+            mlflow.log_metric("accuracy",  result["accuracy"])
+            mlflow.log_metric("precision", result["precision"])
+            mlflow.log_metric("recall",    result["recall"])
+            mlflow.log_metric("f1_score",  result["f1_score"])
+            mlflow.log_metric("auc",       result["auc"])
 
-# --- DÉFINITION DU DAG ---
 
-with DAG(
-    'dag_simple_ml',
-    start_date=datetime(2024, 1, 1),
-    schedule=None,
-    catchup=False
-) as dag:
 
-    step1 = PythonOperator(task_id='prepare_data', python_callable=task_load_and_split)
-    step2 = PythonOperator(task_id='train_model',  python_callable=task_train_model)
-    step3 = PythonOperator(task_id='log_to_mlflow', python_callable=task_evaluate_log_mlflow)
 
-    # L'ordre d'exécution
-    step1 >> step2 >> step3
+    # save model
+    @task()
+    def save(metrics_result):
+        import sys
+        import mlflow
+        import mlflow.spark
+        sys.path.append("/opt/airflow/ml/models_training")
+        from ..ml.models_training.train_conversion_model import save_model
+        from pyspark.ml import PipelineModel
+ 
+        model = PipelineModel.load(metrics_result["model_path"])
+        save_model(model, MODEL_PATH)
+ 
+        # ✅ MLflow — logger le modèle Spark dans le même run
+        mlflow.set_experiment(mlflow_experiment)
+        with mlflow.start_run(run_id=metrics_result["run_id"]):
+            mlflow.spark.log_model(model, "conversion_model")
+ 
+        print(f"✅ Modèle sauvegardé → {MODEL_PATH}")
+        print(f"   AUC      : {metrics_result['auc']:.4f}")
+        print(f"   Accuracy : {metrics_result['accuracy']:.4f}")
+        print(f"   F1 Score : {metrics_result['f1_score']:.4f}")
+ 
+        return {"model_saved": True, "path": MODEL_PATH}
+ 
+
+
+    df_path         = load()
+    split_result    = split(df_path)
+    training_result = training(split_result)
+    metrics_result  = metrics(training_result)
+    save(metrics_result)
+ 
+ 
+conversion_model_dag()
