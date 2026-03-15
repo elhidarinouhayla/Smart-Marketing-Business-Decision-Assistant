@@ -1,105 +1,93 @@
-from pyspark.ml.feature import VectorAssembler, StandardScaler
+from pyspark.ml.feature import VectorAssembler, StandardScaler, StringIndexer
 from pyspark.ml.clustering import KMeans
 from pyspark.ml.evaluation import ClusteringEvaluator
+from pyspark.ml import Pipeline
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, when
 
+
+# Colonnes numeriques 
+numeric_cols = [
+    "Age", "Income", "AdSpend",
+    "ClickThroughRate", "LoyaltyPoints",
+    "WebsiteVisits", "PagesPerVisit", "TimeOnSite",
+    "SocialShares", "EmailOpens", "EmailClicks",
+    "PreviousPurchases"
+]
+
+# Colonnes categorielles 
+categorical_cols = ["Gender", "CampaignChannel", "CampaignType"]
+
+# toutes les features 
+kmeans_featres = numeric_cols + [c + "_index" for c in categorical_cols]
 
 
 def create_spark():
-    return (
-        SparkSession.builder
-        .appName("customerSegmentation")
-        .getOrCreate()
-    )
+    return SparkSession.builder.appName("customerSegmentation").getOrCreate()
 
 
-# load data
 def load_data(spark, path):
     return spark.read.parquet(path)
 
 
-
 def cast_numeric_columns(df):
-
-    numeric_columns = [
-        "Age",
-        "Income",
-        "LoyaltyPoints",
-        "PreviousPurchases"
-    ]
-
-    for column in numeric_columns:
+    for column in numeric_cols:
         df = df.withColumn(column, col(column).cast("double"))
-
     return df
 
 
 
-def assemble_features(df):
-
-    assembler = VectorAssembler(
-        inputCols=["Age", "Income", "LoyaltyPoints", "PreviousPurchases"],
-        outputCol="features"
-    )
-
-    return assembler.transform(df)
-
+# encoder les categorielles + assembler + scaler 
+def prepare_for_elbow(df):
+    indexers  = [StringIndexer(inputCol=c, outputCol=c + "_index") for c in categorical_cols]
+    assembler = VectorAssembler(inputCols=kmeans_featres, outputCol="features")
+    scaler    = StandardScaler(inputCol="features", outputCol="scaled_features", withMean=True, withStd=True)
+    pipeline  = Pipeline(stages=indexers + [assembler, scaler])
+    return pipeline.fit(df).transform(df)
 
 
-def scale_features(df):
-
-    scaler = StandardScaler(
-        inputCol="features",
-        outputCol="scaled_features",
-        withMean=True,
-        withStd=True
-    )
-
-    scaler_model = scaler.fit(df)
-
-    return scaler_model.transform(df)
+def compute_elbow_costs(df_scaled, k_min=2, k_max=8):
+    costs = []
+    for k in range(k_min, k_max + 1):
+        model = KMeans(k=k, seed=42, featuresCol="scaled_features", predictionCol="SegmentID").fit(df_scaled)
+        costs.append((k, model.summary.trainingCost))
+        print(f"  K={k} → Cost={model.summary.trainingCost:,.0f}")
+    return costs
 
 
-# train model
-def train_kmeans(df, k):
-
-    model = KMeans(
-        k=k,
-        seed=42,
-        featuresCol="scaled_features",
-        predictionCol="SegmentID"
-    ).fit(df)
-
-    return model
+def train_model(df, k):
+    indexers  = [StringIndexer(inputCol=c, outputCol=c + "_index") for c in categorical_cols]
+    assembler = VectorAssembler(inputCols=kmeans_featres, outputCol="features")
+    scaler    = StandardScaler(inputCol="features", outputCol="scaled_features", withMean=True, withStd=True)
+    kmeans    = KMeans(k=k, seed=42, featuresCol="scaled_features", predictionCol="SegmentID")
+    pipeline  = Pipeline(stages=indexers + [assembler, scaler, kmeans])
+    return pipeline.fit(df)
 
 
-
-# evaluate model
 def evaluate_model(model, df):
-
-    evaluator = ClusteringEvaluator(
-        featuresCol="scaled_features",
-        predictionCol="SegmentID"
-    )
-
-    return evaluator.evaluate(model.transform(df))
+    predictions = model.transform(df)
+    score = ClusteringEvaluator(featuresCol="scaled_features", predictionCol="SegmentID").evaluate(predictions)
+    return score
 
 
-def save_segmented_data(model, df, path):
-
-    # appliquer le modèle
-    segmented_df = model.transform(df)
-
-    # supprimer les colonnes techniques
-    final_df = segmented_df.drop("features", "scaled_features")
-
-    # sauvegarder toutes les colonnes + SegmentID
-    final_df.write.mode("overwrite").parquet(path)
+def get_cluster_centers(model):
+    centers = model.stages[-1].clusterCenters()
+    return {i: dict(zip(kmeans_featres, [round(v, 2) for v in c])) for i, c in enumerate(centers)}
 
 
-# save model
+def add_segment_names(df, segment_names):
+    mapping = when(col("SegmentID") == list(segment_names.keys())[0], list(segment_names.values())[0])
+    for seg_id, name in list(segment_names.items())[1:]:
+        mapping = mapping.when(col("SegmentID") == seg_id, name)
+    return df.withColumn("SegmentName", mapping.otherwise("Unknown"))
+
+
+def save_data(model, df, segment_names, output_path):
+    df_result = model.transform(df)
+    df_result = add_segment_names(df_result, segment_names)
+    cols_to_drop = ["features", "scaled_features"] + [c + "_index" for c in categorical_cols]
+    df_result.drop(*cols_to_drop).write.mode("overwrite").parquet(output_path)
+
+
 def save_model(model, path):
     model.write().overwrite().save(path)
-
- 
