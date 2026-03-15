@@ -8,6 +8,7 @@ TEMP_PATH  = "/opt/airflow/ml/data/temp"
 MODEL_PATH = "/opt/airflow/ml/models/conversion_model"
 
 mlflow_experiment = "Conversion_Model"
+MLFLOW_TRACKING_URI = "http://mlflow:5000"
 
 
 @dag(
@@ -22,8 +23,8 @@ def conversion_model_dag():
     @task()
     def load():
         import sys
-        sys.path.append("/opt/airflow/ml/models_training") 
-        from ..ml.models_training.train_conversion_model import create_spark, load_data, cast_numeric_columns
+        sys.path.append("/opt/airflow") 
+        from ml.models_training.train_conversion_model import create_spark, load_data, cast_numeric_columns
  
         os.makedirs(TEMP_PATH, exist_ok=True)
  
@@ -40,8 +41,8 @@ def conversion_model_dag():
     @task()
     def split(df_path):
         import sys
-        sys.path.append("/opt/airflow/ml/models_training")
-        from ..ml.models_training.train_conversion_model  import create_spark, load_data, split_data
+        sys.path.append("/opt/airflow")
+        from ml.models_training.train_conversion_model  import create_spark, load_data, split_data
  
         spark             = create_spark()
         df                = load_data(spark, df_path)
@@ -64,8 +65,8 @@ def conversion_model_dag():
         import sys
         import mlflow
         import mlflow.spark
-        sys.path.append("/opt/airflow/ml/models_training")
-        from ..ml.models_training.train_conversion_model import (
+        sys.path.append("/opt/airflow")
+        from ml.models_training.train_conversion_model import (
             create_spark, load_data, model_pipeline,
             nimeric_cols, categorical_cols
         )
@@ -74,10 +75,11 @@ def conversion_model_dag():
         spark    = create_spark()
         train_df = load_data(spark, split_result["train_path"])
  
-        lr       = LogisticRegression(featuresCol="features", labelCol="conversion")
+        lr       = LogisticRegression(featuresCol="features", labelCol="Conversion")
         pipeline = model_pipeline(nimeric_cols, categorical_cols, lr)
  
 
+        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
         mlflow.set_experiment(mlflow_experiment)
         with mlflow.start_run() as run:
             model = pipeline.fit(train_df)
@@ -103,8 +105,8 @@ def conversion_model_dag():
     def metrics(training_result):
         import sys
         import mlflow
-        sys.path.append("/opt/airflow/ml/models_training")
-        from ..ml.models_training.train_conversion_model import create_spark, load_data, evaluate_model  
+        sys.path.append("/opt/airflow")
+        from ml.models_training.train_conversion_model import create_spark, load_data, evaluate_model  
         from pyspark.ml import PipelineModel
  
         spark   = create_spark()
@@ -120,6 +122,7 @@ def conversion_model_dag():
         print(f"AUC       : {result['auc']:.4f}")
  
         # ✅ logger les métriques dans le même run MLflow
+        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
         mlflow.set_experiment(mlflow_experiment)
         with mlflow.start_run(run_id=training_result["run_id"]):
             mlflow.log_metric("accuracy",  result["accuracy"])
@@ -137,14 +140,15 @@ def conversion_model_dag():
         import sys
         import mlflow
         import mlflow.spark
-        sys.path.append("/opt/airflow/ml/models_training")
-        from ..ml.models_training.train_conversion_model import save_model
+        sys.path.append("/opt/airflow")
+        from ml.models_training.train_conversion_model import save_model
         from pyspark.ml import PipelineModel
  
         model = PipelineModel.load(metrics_result["model_path"])
         save_model(model, MODEL_PATH)
  
         # ✅ MLflow — logger le modèle Spark dans le même run
+        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
         mlflow.set_experiment(mlflow_experiment)
         with mlflow.start_run(run_id=metrics_result["run_id"]):
             mlflow.spark.log_model(model, "conversion_model")
