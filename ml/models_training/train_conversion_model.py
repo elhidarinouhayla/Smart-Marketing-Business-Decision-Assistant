@@ -36,6 +36,7 @@ def load_data(spark, path):
 def cast_numeric_columns(df):
     for column in nimeric_cols:
         df = df.withColumn(column, col(column).cast("double"))
+    df = df.withColumn(target, col(target).cast("double"))
     return df
 
 
