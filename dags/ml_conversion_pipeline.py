@@ -68,15 +68,15 @@ def conversion_model_dag():
         sys.path.append("/opt/airflow")
         from ml.models_training.train_conversion_model import (
             create_spark, load_data, model_pipeline,
-            nimeric_cols, categorical_cols
+            numeric_cols, categorical_cols, target
         )
         from pyspark.ml.classification import LogisticRegression
  
         spark    = create_spark()
         train_df = load_data(spark, split_result["train_path"])
  
-        lr       = LogisticRegression(featuresCol="features", labelCol="Conversion")
-        pipeline = model_pipeline(nimeric_cols, categorical_cols, lr)
+        lr       = LogisticRegression(featuresCol="features", labelCol=target)
+        pipeline = model_pipeline(numeric_cols, categorical_cols, lr)
  
 
         mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
@@ -85,7 +85,7 @@ def conversion_model_dag():
             model = pipeline.fit(train_df)
     
             mlflow.log_param("model_type",   "LogisticRegression")
-            mlflow.log_param("num_features", len(nimeric_cols))
+            mlflow.log_param("num_features", len(numeric_cols))
             mlflow.log_param("cat_features", len(categorical_cols))
             mlflow.log_param("test_size",    0.2)
     
