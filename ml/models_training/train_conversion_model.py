@@ -7,7 +7,7 @@ from sklearn.metrics import roc_curve, auc
 
 
 # colonnes numeriques 
-nimeric_cols = [
+numeric_cols = [
     "Age", "Income", "AdSpend",
     "ClickThroughRate", "LoyaltyPoints",
     "WebsiteVisits", "PagesPerVisit", "TimeOnSite",
@@ -34,7 +34,7 @@ def load_data(spark, path):
 
 
 def cast_numeric_columns(df):
-    for column in nimeric_cols:
+    for column in numeric_cols:
         df = df.withColumn(column, col(column).cast("double"))
     df = df.withColumn(target, col(target).cast("double"))
     return df
