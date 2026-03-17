@@ -8,7 +8,7 @@ TEMP_PATH  = "/opt/airflow/ml/data/temp"
 MODEL_PATH = "/opt/airflow/ml/models/conversion_model"
 
 mlflow_experiment = "Conversion_Model"
-MLFLOW_TRACKING_URI = "http://mlflow:5000"
+mlflow_tracking_uri = "http://mlflow:5000" 
 
 
 @dag(
@@ -79,7 +79,7 @@ def conversion_model_dag():
         pipeline = model_pipeline(numeric_cols, categorical_cols, lr)
  
 
-        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
         mlflow.set_experiment(mlflow_experiment)
         with mlflow.start_run() as run:
             model = pipeline.fit(train_df)
@@ -121,8 +121,8 @@ def conversion_model_dag():
         print(f"F1 Score  : {result['f1_score']:.4f}")
         print(f"AUC       : {result['auc']:.4f}")
  
-        # ✅ logger les métriques dans le même run MLflow
-        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
         mlflow.set_experiment(mlflow_experiment)
         with mlflow.start_run(run_id=training_result["run_id"]):
             mlflow.log_metric("accuracy",  result["accuracy"])
@@ -147,13 +147,13 @@ def conversion_model_dag():
         model = PipelineModel.load(metrics_result["model_path"])
         save_model(model, MODEL_PATH)
  
-        # ✅ MLflow — logger le modèle Spark dans le même run
-        mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
         mlflow.set_experiment(mlflow_experiment)
         with mlflow.start_run(run_id=metrics_result["run_id"]):
             mlflow.spark.log_model(model, "conversion_model")
  
-        print(f"✅ Modèle sauvegardé → {MODEL_PATH}")
+        print(f" Modèle sauvegardé → {MODEL_PATH}")
         print(f"   AUC      : {metrics_result['auc']:.4f}")
         print(f"   Accuracy : {metrics_result['accuracy']:.4f}")
         print(f"   F1 Score : {metrics_result['f1_score']:.4f}")
