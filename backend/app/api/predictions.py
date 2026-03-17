@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from backend.app.db.database import get_db
 from backend.app.models.prediction import Prediction
 from backend.app.models.campaign import Campaign
-from backend.app.schemas.schemas import PredictionRequest, PredictionResponse
+from backend.app.schemas.prediction import PredictionRequest, PredictionResponse
 from backend.app.authentification.auth import verify_token
 from backend.app.services.ml_service import predict 
 from typing import List
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/predictions", tags=["Predictions"])
 @router.post("/", response_model=PredictionResponse)
 def run_prediction(data: PredictionRequest, db: Session = Depends(get_db), user: dict = Depends(verify_token)):
 
-    # verifier que la campagne existe
+
     campaign = db.query(Campaign).filter(Campaign.id == data.campaign_id).first()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campagne non trouvée")
