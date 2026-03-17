@@ -4,7 +4,7 @@ from backend.app.db.database import get_db
 from backend.app.models.campaign import Campaign
 from backend.app.models.customer import Customer
 from backend.app.models.prediction import Prediction
-from backend.app.schemas.schemas import DashboardResponse
+from backend.app.schemas.dashboard import DashboardResponse
 from backend.app.authentification.auth import verify_token
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
