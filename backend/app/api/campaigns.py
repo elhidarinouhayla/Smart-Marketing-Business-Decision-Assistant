@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from backend.app.db.database import get_db
 from backend.app.models.campaign import Campaign
-from backend.app.schemas.schemas import CampaignCreate, CampaignUpdate, CampaignResponse
+from backend.app.schemas.campaign import CampaignCreate, CampaignUpdate, CampaignResponse
 from backend.app.authentification.auth import verify_token
 from typing import List
 
