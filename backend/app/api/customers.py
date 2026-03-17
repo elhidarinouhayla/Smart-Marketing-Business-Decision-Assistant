@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from backend.app.db.database import get_db
 from backend.app.models.customer import Customer
-from backend.app.schemas.schemas import CustomerCreate, CustomerResponse
+from backend.app.schemas.customer import CustomerCreate, CustomerResponse
 from backend.app.authentification.auth import verify_token
 from sklearn.cluster import KMeans
 from typing import List
