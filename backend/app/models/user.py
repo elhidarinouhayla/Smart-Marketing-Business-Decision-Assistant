@@ -12,5 +12,5 @@ class User(Base):
     password = Column(String, nullable=False)
     created_at= Column(DateTime, default= datetime.now )
 
-    # Relationships
+    # relationships
     campaigns = relationship("Campaign", back_populates="user")
