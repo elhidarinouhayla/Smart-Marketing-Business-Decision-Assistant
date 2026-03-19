@@ -11,34 +11,30 @@ from typing import List
 router = APIRouter(prefix="/predictions", tags=["Predictions"])
 
 
+
+
 # lancer une prediction pour une campagne
 @router.post("/", response_model=PredictionResponse)
 def run_prediction(data: PredictionRequest, db: Session = Depends(get_db), user: dict = Depends(verify_token)):
-
 
     campaign = db.query(Campaign).filter(Campaign.id == data.campaign_id).first()
     if not campaign:
         raise HTTPException(status_code=404, detail="Campagne non trouvée")
 
     features = data.model_dump(exclude={"campaign_id"})
-
     result = predict(features)
 
-    probability = result["probability"]
-    prediction_value = result["prediction"]
+    prediction_value = int(result["prediction"])   
+    probability = float(result["probability"])      
 
-  
-    if probability < 0.40:
-        message = "La campagne a peu de chances de réussir"
-    elif probability < 0.70:
-        message = "La campagne peut être améliorée"
+    if prediction_value == 1:
+        message = " La campagne a de bonnes chances de reussir"
     else:
-        message = "La campagne est efficace mais peut être optimisée"
+        message = " La campagne a peu de chances de reussir"
 
-    # Sauvegarder en base
     new_prediction = Prediction(
-        predicted_rate=probability,
-        confidence=probability,   
+        result=prediction_value,
+        probability=probability,
         campaign_id=data.campaign_id
     )
     db.add(new_prediction)
@@ -48,10 +44,12 @@ def run_prediction(data: PredictionRequest, db: Session = Depends(get_db), user:
     return {
         "id": new_prediction.id,
         "campaign_id": new_prediction.campaign_id,
-        "predicted_rate": new_prediction.predicted_rate,
-        "confidence": new_prediction.confidence,
-        "message": message
+        "prediction": new_prediction.result,       
+        "probability": new_prediction.probability,
+        "message": message,
+        "success": prediction_value == 1
     }
+
 
 
 # historique des predictions
@@ -60,14 +58,16 @@ def get_predictions(db: Session = Depends(get_db), user: dict = Depends(verify_t
     predictions = db.query(Prediction).all()
     result = []
     for p in predictions:
-        if p.predicted_rate < 0.40:
-            msg = "La campagne a peu de chances de réussir"
-        elif p.predicted_rate < 0.70:
-            msg = "La campagne peut être améliorée"
-        else:
-            msg = "La campagne est efficace mais peut être optimisée"
-        result.append({**p.__dict__, "message": msg})
+        msg = "La campagne a de bonnes chances de reussir" if p.result == 1 else " La campagne a peu de chances de reussir"
+        result.append({
+            **p.__dict__,
+            "prediction": p.result,      
+            "message": msg,
+            "success": p.result == 1
+        })
     return result
+
+
 
 
 # detail d'une prediction 
@@ -77,11 +77,27 @@ def get_prediction(prediction_id: str, db: Session = Depends(get_db), user: dict
     if not p:
         raise HTTPException(status_code=404, detail="Prédiction non trouvée")
 
-    if p.predicted_rate < 0.40:
-        msg = "La campagne a peu de chances de réussir"
-    elif p.predicted_rate < 0.70:
-        msg = "La campagne peut être améliorée"
-    else:
-        msg = "La campagne est efficace mais peut être optimisée"
+    msg = " La campagne a de bonnes chances de reussir" if p.result == 1 else " La campagne a peu de chances de reussir"
+    return {
+        **p.__dict__,
+        "prediction": p.result,          
+        "message": msg,
+        "success": p.result == 1
+    }
 
-    return {**p.__dict__, "message": msg}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

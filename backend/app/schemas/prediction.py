@@ -6,6 +6,10 @@ from typing import Optional
 # prediction
 class PredictionRequest(BaseModel):
     campaign_id: str
+    Age: int
+    Income: float  
+    WebsiteVisits: int
+    SocialShares: int
     Gender: str
     CampaignChannel: str
     CampaignType: str
@@ -24,9 +28,10 @@ class PredictionRequest(BaseModel):
 class PredictionResponse(BaseModel):
     id: str
     campaign_id: str
-    predicted_rate: int       
-    confidence: float            
-    message: str                 
-
+    prediction: int     
+    probability: float   
+    message: str
+    success: bool
+    
     class Config:
         from_attributes = True

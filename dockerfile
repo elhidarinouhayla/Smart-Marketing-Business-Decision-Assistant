@@ -1,6 +1,6 @@
 FROM python:3.10-slim
 
-# installer Java — obligatoire pour PySpark
+# installer java
 RUN apt-get update && \
     apt-get install -y default-jdk && \
     apt-get clean && \

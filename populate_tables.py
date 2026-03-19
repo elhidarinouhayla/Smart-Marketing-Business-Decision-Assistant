@@ -10,12 +10,12 @@ def connect():
                 host="postgres", port=5432,
                 database="airflow", user="postgres", password="postgres"
             )
-            print("✅ Connecté à PostgreSQL")
+            print(" Connecte a PostgreSQL")
             return conn
         except:
-            print(f"⏳ Attente... ({i+1}/10)")
+            print(f" attente... ({i+1}/10)")
             time.sleep(3)
-    raise Exception("❌ Impossible de se connecter")
+    raise Exception(" impossible de se connecter")
 
 
 conn = connect()
@@ -25,16 +25,16 @@ cur  = conn.cursor()
 cur.execute("SELECT id FROM users LIMIT 1")
 user = cur.fetchone()
 if user is None:
-    print("❌ Aucun user — crée d'abord un compte via http://localhost:8001/docs")
+    print(" Aucun user — crée d'abord un compte via http://localhost:8001/docs")
     exit(1)
 user_id = user[0]
-print(f"✅ User : {user_id}")
+print(f" User : {user_id}")
 
 
 # 2. Peupler customers depuis segment_data (contient SegmentName)
 cur.execute("SELECT COUNT(*) FROM customers")
 if cur.fetchone()[0] > 0:
-    print("⏭️  customers déjà peuplé")
+    print("⏭ customers deja peuple")
 else:
     cur.execute('SELECT "Age", "Income", "SegmentName" FROM segment_data')
     rows = cur.fetchall()
@@ -43,13 +43,13 @@ else:
         INSERT INTO customers (id, age, income, segment_label)
         VALUES (%s, %s, %s, %s)
     """, data)
-    print(f"✅ {len(data)} customers insérés")
+    print(f" {len(data)} customers inseres")
 
 
 # 3. Peupler campaigns depuis segment_data
 cur.execute("SELECT COUNT(*) FROM campaigns")
 if cur.fetchone()[0] > 0:
-    print("⏭️  campaigns déjà peuplé")
+    print("⏭  campaigns deja peuple")
 else:
     cur.execute('SELECT DISTINCT "CampaignType", "AdSpend", "CampaignChannel" FROM segment_data')
     rows = cur.fetchall()
@@ -58,15 +58,15 @@ else:
         INSERT INTO campaigns (id, name, budget, channel, status, user_id)
         VALUES (%s, %s, %s, %s, %s, %s)
     """, data)
-    print(f"✅ {len(data)} campaigns insérées")
+    print(f" {len(data)} campaigns insérées")
 
 
 # 4. Vérification
 conn.commit()
 cur.execute("SELECT COUNT(*) FROM customers")
-print(f"✅ Total customers : {cur.fetchone()[0]}")
+print(f" total customers : {cur.fetchone()[0]}")
 cur.execute("SELECT COUNT(*) FROM campaigns")
-print(f"✅ Total campaigns : {cur.fetchone()[0]}")
+print(f" total campaigns : {cur.fetchone()[0]}")
 
 conn.close()
-print("🎉 Terminé !")
+print("termine")

@@ -43,7 +43,12 @@ def run_clustering(db: Session = Depends(get_db), user: dict = Depends(verify_to
     kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
     labels = kmeans.fit_predict(data)
 
-    segment_names = {0: "Segment_A", 1: "Segment_B", 2: "Segment_C"}
+    segment_names = {
+    0: "Low_Engagement",
+    1: "High_Income_Senior",
+    2: "High_Spender_Female",
+    3: "Engaged_Clicker"
+}
 
     for i, customer in enumerate(customers):
         customer.segment_label = segment_names[labels[i]]
