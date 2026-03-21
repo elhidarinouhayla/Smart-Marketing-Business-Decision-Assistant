@@ -1,14 +1,18 @@
-from pydantic import BaseModel, ConfigDict
-from uuid import UUID
+from pydantic import BaseModel
+from typing import Optional
 
-class RecommendationBase(BaseModel):
-    advice_text: str
-    campaign_id: UUID
 
-class RecommendationCreate(RecommendationBase):
-    pass
 
-class RecommendationRead(RecommendationBase):
-    id: UUID
-    
-    model_config = ConfigDict(from_attributes=True)
+# recommandation
+class RecommendationRequest(BaseModel):
+    campaign_id: str
+    probability: float          
+    prediction: int          
+
+class RecommendationResponse(BaseModel):
+    id: str
+    campaign_id: str
+    advice_text: str             
+
+    class Config:
+        from_attributes = True

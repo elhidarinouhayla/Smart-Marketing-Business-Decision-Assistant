@@ -8,6 +8,7 @@ TEMP_PATH  = "/opt/airflow/ml/data/temp"
 MODEL_PATH = "/opt/airflow/ml/models/conversion_model"
 
 mlflow_experiment = "Conversion_Model"
+mlflow_tracking_uri = "http://mlflow:5000" 
 
 
 @dag(
@@ -22,8 +23,8 @@ def conversion_model_dag():
     @task()
     def load():
         import sys
-        sys.path.append("/opt/airflow/ml/models_training") 
-        from ..ml.models_training.train_conversion_model import create_spark, load_data, cast_numeric_columns
+        sys.path.append("/opt/airflow") 
+        from ml.models_training.train_conversion_model import create_spark, load_data, cast_numeric_columns
  
         os.makedirs(TEMP_PATH, exist_ok=True)
  
@@ -40,8 +41,8 @@ def conversion_model_dag():
     @task()
     def split(df_path):
         import sys
-        sys.path.append("/opt/airflow/ml/models_training")
-        from ..ml.models_training.train_conversion_model  import create_spark, load_data, split_data
+        sys.path.append("/opt/airflow")
+        from ml.models_training.train_conversion_model  import create_spark, load_data, split_data
  
         spark             = create_spark()
         df                = load_data(spark, df_path)
@@ -64,26 +65,27 @@ def conversion_model_dag():
         import sys
         import mlflow
         import mlflow.spark
-        sys.path.append("/opt/airflow/ml/models_training")
-        from ..ml.models_training.train_conversion_model import (
+        sys.path.append("/opt/airflow")
+        from ml.models_training.train_conversion_model import (
             create_spark, load_data, model_pipeline,
-            nimeric_cols, categorical_cols
+            numeric_cols, categorical_cols, target
         )
         from pyspark.ml.classification import LogisticRegression
  
         spark    = create_spark()
         train_df = load_data(spark, split_result["train_path"])
  
-        lr       = LogisticRegression(featuresCol="features", labelCol="conversion")
-        pipeline = model_pipeline(nimeric_cols, categorical_cols, lr)
+        lr       = LogisticRegression(featuresCol="features", labelCol=target)
+        pipeline = model_pipeline(numeric_cols, categorical_cols, lr)
  
 
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
         mlflow.set_experiment(mlflow_experiment)
         with mlflow.start_run() as run:
             model = pipeline.fit(train_df)
     
             mlflow.log_param("model_type",   "LogisticRegression")
-            mlflow.log_param("num_features", len(nimeric_cols))
+            mlflow.log_param("num_features", len(numeric_cols))
             mlflow.log_param("cat_features", len(categorical_cols))
             mlflow.log_param("test_size",    0.2)
     
@@ -103,8 +105,8 @@ def conversion_model_dag():
     def metrics(training_result):
         import sys
         import mlflow
-        sys.path.append("/opt/airflow/ml/models_training")
-        from ..ml.models_training.train_conversion_model import create_spark, load_data, evaluate_model  
+        sys.path.append("/opt/airflow")
+        from ml.models_training.train_conversion_model import create_spark, load_data, evaluate_model  
         from pyspark.ml import PipelineModel
  
         spark   = create_spark()
@@ -119,7 +121,8 @@ def conversion_model_dag():
         print(f"F1 Score  : {result['f1_score']:.4f}")
         print(f"AUC       : {result['auc']:.4f}")
  
-        # ✅ logger les métriques dans le même run MLflow
+
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
         mlflow.set_experiment(mlflow_experiment)
         with mlflow.start_run(run_id=training_result["run_id"]):
             mlflow.log_metric("accuracy",  result["accuracy"])
@@ -127,6 +130,14 @@ def conversion_model_dag():
             mlflow.log_metric("recall",    result["recall"])
             mlflow.log_metric("f1_score",  result["f1_score"])
             mlflow.log_metric("auc",       result["auc"])
+
+        return {
+            "model_path": training_result["model_path"],
+            "run_id": training_result["run_id"],
+            "accuracy": result["accuracy"],
+            "auc": result["auc"],
+            "f1_score": result["f1_score"]
+        }
 
 
 
@@ -137,19 +148,20 @@ def conversion_model_dag():
         import sys
         import mlflow
         import mlflow.spark
-        sys.path.append("/opt/airflow/ml/models_training")
-        from ..ml.models_training.train_conversion_model import save_model
+        sys.path.append("/opt/airflow")
+        from ml.models_training.train_conversion_model import save_model
         from pyspark.ml import PipelineModel
  
         model = PipelineModel.load(metrics_result["model_path"])
         save_model(model, MODEL_PATH)
  
-        # ✅ MLflow — logger le modèle Spark dans le même run
+
+        mlflow.set_tracking_uri(mlflow_tracking_uri)
         mlflow.set_experiment(mlflow_experiment)
         with mlflow.start_run(run_id=metrics_result["run_id"]):
             mlflow.spark.log_model(model, "conversion_model")
  
-        print(f"✅ Modèle sauvegardé → {MODEL_PATH}")
+        print(f" Modèle sauvegardé → {MODEL_PATH}")
         print(f"   AUC      : {metrics_result['auc']:.4f}")
         print(f"   Accuracy : {metrics_result['accuracy']:.4f}")
         print(f"   F1 Score : {metrics_result['f1_score']:.4f}")

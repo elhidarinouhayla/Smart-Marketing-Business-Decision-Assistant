@@ -4,7 +4,7 @@ from backend.app.db.database import get_db
 from backend.app.models.campaign import Campaign
 from backend.app.models.customer import Customer
 from backend.app.models.prediction import Prediction
-from backend.app.schemas.schemas import DashboardResponse
+from backend.app.schemas.dashboards import DashboardResponse
 from backend.app.authentification.auth import verify_token
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
@@ -17,7 +17,7 @@ def get_overview(db: Session = Depends(get_db), user: dict = Depends(verify_toke
     active_campaigns = [c for c in campaigns if c.status == "active"]
 
     predictions = db.query(Prediction).all()
-    avg_rate = round(sum(p.predicted_rate for p in predictions) / len(predictions), 2) if predictions else 0.0
+    avg_rate = round(sum(p.probability for p in predictions) / len(predictions), 2) if predictions else 0.0
 
     customers = db.query(Customer).all()
     segments = set(c.segment_label for c in customers if c.segment_label)

@@ -17,12 +17,16 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql/data
     ports:
-      - "5433:5432"
+      - "5434:5432"
+    networks:
+      - ml-network
 
   
   # airflow initialisation
   airflow-init:
-    build: .
+    build:
+      context: .
+      dockerfile: airflow.dockerfile
     container_name: airflow-init
     depends_on:
       postgres:
@@ -30,28 +34,33 @@ services:
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@postgres/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
     volumes:
       - ./init_airflow.sh:/init_airflow.sh
     entrypoint: ["/bin/bash", "/init_airflow.sh"]
+    networks:
+      - ml-network
 
   # airflow principal
    
   airflow:
-    build: .
+    build:
+      context: .
+      dockerfile: airflow.dockerfile
     container_name: airflow
     restart: always
     environment:
       AIRFLOW__CORE__EXECUTOR: LocalExecutor
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@postgres/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
       - ./requirements.txt:/requirements.txt
-      - ./ml/data:/opt/airflow/ml/data
+      - ./ml:/opt/airflow/ml
     command: >
       bash -c "
-        pip install --no-cache-dir -r /requirements.txt &&
         airflow scheduler &
         airflow webserver
       "
@@ -61,7 +70,9 @@ services:
       postgres:
         condition: service_healthy
     ports:
-      - "8080:8080"
+      - "8081:8080"
+    networks:
+      - ml-network
 
   
   # backend fastAPI
@@ -83,23 +94,153 @@ services:
       - .:/app
     working_dir: /app
     ports:
-      - "8000:8000"
-    command: uvicorn backend.app.api.api_auth:app --host 0.0.0.0 --port 8000 --reload
+      - "8001:8000"
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
     depends_on:
       postgres:
         condition: service_healthy
+    networks:
+      - ml-network
 
   # MLflow 
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.17.2
     container_name: mlflow
     ports:
-      - "5000:5000"
+      - "5001:5000"
     command: mlflow ui --host 0.0.0.0
     volumes:
       - ./mlflow_data:/mlflow
     working_dir: /mlflow
+    networks:
+      - ml-network
+
+
+# sauvegarder selver_data 
+  save-silver:
+    build:
+      context: .
+      dockerfile: airflow.dockerfile       
+    container_name: save-silver
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+       - ./ml:/opt/airflow/ml                
+  
+    command: >
+      python /opt/airflow/ml/data/save_silver_data.py 
+    networks:
+      - ml-network
+
+
+   
+ #  sauvegarder segment_data 
+  save-segment:
+    build:
+      context: .
+      dockerfile: airflow.dockerfile
+    container_name: save-segment
+    depends_on:
+      save-silver:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./ml:/opt/airflow/ml
+    command: python /opt/airflow/ml/data/save_segment_data.py   
+    networks:
+      - ml-network
+ 
+  # peupler customers et campaigns 
+  populate-tables:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: populate-tables
+    depends_on:
+      save-segment:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: python /app/populate_tables.py
+    networks:
+      - ml-network
+ 
+
+  #  Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    restart: unless-stopped
+    depends_on:
+      - cadvisor
+      - node-exporter
+      # - ml-pipeline
+    networks:
+      - ml-network
+
+  #  cAdvisor
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - ml-network
+
+  #  Node Exporter
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+    networks:
+      - ml-network
+
+  #  Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - ml-network
+
+networks:
+  ml-network:
+    driver: bridge
+
+
 
 volumes:
   postgres-data:
-    driver: local
+  prometheus-data:
+  grafana-data:

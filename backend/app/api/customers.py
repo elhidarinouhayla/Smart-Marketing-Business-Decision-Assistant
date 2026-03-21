@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from backend.app.db.database import get_db
 from backend.app.models.customer import Customer
-from backend.app.schemas.schemas import CustomerCreate, CustomerResponse
+from backend.app.schemas.customer import CustomerCreate, CustomerResponse
 from backend.app.authentification.auth import verify_token
 from sklearn.cluster import KMeans
 from typing import List
@@ -32,18 +32,25 @@ def create_customer(data: CustomerCreate, db: Session = Depends(get_db), user: d
 
 # lancer le clustering KMeans 
 @router.post("/clustering")
-def run_clustering(db: Session = Depends(get_db), user: dict = Depends(verify_token)):
+def run_clustering(n_clusters: int = 3, db: Session = Depends(get_db), user: dict = Depends(verify_token)):
     customers = db.query(Customer).all()
 
-    if len(customers) < 3:
-        raise HTTPException(status_code=400, detail="Il faut au moins 3 clients pour lancer le clustering")
+    if len(customers) < n_clusters:
+        raise HTTPException(status_code=400, detail=f"Il faut au moins {n_clusters} clients pour lancer le clustering")
 
     data = np.array([[c.age, c.income] for c in customers])
 
-    kmeans = KMeans(n_clusters=3, random_state=42, n_init=10)
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
     labels = kmeans.fit_predict(data)
 
-    segment_names = {0: "Segment_A", 1: "Segment_B", 2: "Segment_C"}
+    segment_names = {
+    0: "Low_Engagement",
+    1: "High_Income_Senior",
+    2: "High_Spender_Female",
+    3: "Engaged_Clicker",
+    4: "New_Customer",
+    5: "Loyal_Promoter"
+}
 
     for i, customer in enumerate(customers):
         customer.segment_label = segment_names[labels[i]]

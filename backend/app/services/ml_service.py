@@ -36,24 +36,24 @@ def predict(data: dict):
 
 
 # data = {
-#     "Age": 35,
-#     "Gender": "Male",
-#     "Income": 60000,
-#     "CampaignChannel": "Email",
-#     "CampaignType": "Promotion",
-#     "AdSpend": 200,
-#     "ClickThroughRate": 0.15,
-#     "WebsiteVisits": 8,
-#     "PagesPerVisit": 5,
-#     "TimeOnSite": 120,
-#     "SocialShares": 1,
-#     "EmailOpens": 3,
-#     "EmailClicks": 1,
-#     "PreviousPurchases": 2,
-#     "LoyaltyPoints": 150,
-#     "AdvertisingPlatform": "Google",
-#     "AdvertisingTool": "AdsManager",
-#     "SegmentID": 1
+    # "Age": 35,
+    # "Gender": "Male",
+    # "Income": 60000,
+    # "CampaignChannel": "Email",
+    # "CampaignType": "Promotion",
+    # "AdSpend": 200,
+    # "ClickThroughRate": 0.15,
+    # "WebsiteVisits": 8,
+    # "PagesPerVisit": 5,
+    # "TimeOnSite": 120,
+    # "SocialShares": 1,
+    # "EmailOpens": 3,
+    # "EmailClicks": 1,
+    # "PreviousPurchases": 2,
+    # "LoyaltyPoints": 150,
+    # "AdvertisingPlatform": "Google",
+    # "AdvertisingTool": "AdsManager",
+    # "SegmentName": "Engaged_Clicker"
 # }
 
 # result = predict(data)

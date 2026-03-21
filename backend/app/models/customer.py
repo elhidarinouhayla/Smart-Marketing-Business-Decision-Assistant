@@ -9,4 +9,4 @@ class Customer(Base):
     id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     age = Column(Integer, nullable=False)
     income = Column(Float, nullable=False)
-    segment_label = Column(String, nullable=True)  # rempli après clustering
+    segment_label = Column(String, nullable=True)  

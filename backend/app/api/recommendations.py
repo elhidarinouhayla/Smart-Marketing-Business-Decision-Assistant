@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from backend.app.db.database import get_db
 from backend.app.models.recommendation import Recommendation
 from backend.app.models.campaign import Campaign
-from backend.app.schemas.schemas import RecommendationRequest, RecommendationResponse
+from backend.app.schemas.recommendation import RecommendationRequest, RecommendationResponse
 from backend.app.authentification.auth import verify_token
 from backend.app.services.gemini_service import retention_gemini   
 from typing import List

@@ -47,7 +47,7 @@ def login(user:UserVerify, db: session=Depends(get_db)):
     
     token = create_token(db_user.username, user_id=db_user.id)
 
-    return {"token" : token}
+    return {"token" : token, "username": db_user.username}
 
 
 

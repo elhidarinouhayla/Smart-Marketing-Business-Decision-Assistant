@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Optional
 
 
 # campaign
@@ -45,35 +45,25 @@ class CustomerResponse(BaseModel):
 # prediction
 class PredictionRequest(BaseModel):
     campaign_id: str
-    # infos client
-    Age: int
-    Gender: str                
-    Income: float
-    # infos campagne
-    CampaignChannel: str        
-    CampaignType: str            
+    Gender: str
+    CampaignChannel: str
+    CampaignType: str
+    AdvertisingPlatform: str
+    AdvertisingTool: str
+    SegmentName: str
     AdSpend: float
     ClickThroughRate: float
-    # comportement web
-    WebsiteVisits: int
     PagesPerVisit: float
     TimeOnSite: float
-    SocialShares: int
-    # Eeail
     EmailOpens: int
     EmailClicks: int
-    # historique client
     PreviousPurchases: int
     LoyaltyPoints: int
-    # plateforme
-    AdvertisingPlatform: str     
-    AdvertisingTool: str        
-    SegmentID: int
 
 class PredictionResponse(BaseModel):
     id: str
     campaign_id: str
-    predicted_rate: float        
+    predicted_rate: int       
     confidence: float            
     message: str                 
 
@@ -85,7 +75,7 @@ class PredictionResponse(BaseModel):
 class RecommendationRequest(BaseModel):
     campaign_id: str
     probability: float          
-    prediction: float           
+    prediction: int          
 
 class RecommendationResponse(BaseModel):
     id: str
