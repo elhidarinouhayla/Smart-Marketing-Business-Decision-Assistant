@@ -11,10 +11,8 @@ engine = create_engine(DATABASE_URL, isolation_level='AUTOCOMMIT')
 
 Base = declarative_base()
 SessionLocal = sessionmaker(bind=engine)
-Session = SessionLocal()
-
 def get_db():
-    db = Session
+    db = SessionLocal()
     try :
         yield db
     finally:
