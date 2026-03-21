@@ -131,6 +131,14 @@ def conversion_model_dag():
             mlflow.log_metric("f1_score",  result["f1_score"])
             mlflow.log_metric("auc",       result["auc"])
 
+        return {
+            "model_path": training_result["model_path"],
+            "run_id": training_result["run_id"],
+            "accuracy": result["accuracy"],
+            "auc": result["auc"],
+            "f1_score": result["f1_score"]
+        }
+
 
 
 
