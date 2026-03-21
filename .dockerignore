@@ -1,0 +1,10 @@
+venv
+__pycache__
+.git
+.gitignore
+*.ipynb
+data
+datasets
+models
+mlruns
+*.log
