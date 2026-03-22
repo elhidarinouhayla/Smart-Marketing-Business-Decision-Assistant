@@ -1,4 +1,4 @@
-# 🚀 Smart Marketing Business Decision Assistant (Backend)
+#  Smart Marketing Business Decision Assistant (Backend)
 
 Welcome to the **Smart Marketing Assistant** backend! This system orchestrates a full Machine Learning pipeline—from data processing with Airflow and Spark to serving predictions via FastAPI and monitoring with Prometheus/Grafana.
 
@@ -16,7 +16,7 @@ Welcome to the **Smart Marketing Assistant** backend! This system orchestrates a
 
 ---
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 
@@ -61,7 +61,7 @@ Once the backend is running, you can access the interactive Swagger UI at:
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 - `/backend`: FastAPI source code (Controllers, Models, Schemas).
 - `/dags`: Airflow DAGs for ETL and Training.
@@ -72,7 +72,7 @@ Once the backend is running, you can access the interactive Swagger UI at:
 
 ---
 
-## 🛡 Authentication
+##  Authentication
 
 The backend uses **JWT (JSON Web Tokens)** for authentication. 
 - All `/dashboard` and `/predictions` endpoints require a valid token in the headers.
@@ -82,5 +82,5 @@ The backend uses **JWT (JSON Web Tokens)** for authentication.
 
 ---
 
-## 📄 License
+##  License
 This project is licensed under the MIT License.
