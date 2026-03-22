@@ -27,7 +27,7 @@ Welcome to the **Smart Marketing Assistant** backend! This system orchestrates a
 
 1.  **Clone the repository**:
     ```bash
-    git clone <your-repo-url>
+    git clone https://github.com/elhidarinouhayla/Smart-Marketing-Business-Decision-Assistant.git
     cd Smart-Marketing-Business-Decision-Assistant
     ```
 
