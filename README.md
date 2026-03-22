@@ -4,7 +4,7 @@ Welcome to the **Smart Marketing Assistant** backend! This system orchestrates a
 
 ---
 
-## 🛠 Tech Stack
+##  Tech Stack
 
 - **Framework**: [FastAPI](https://fastapi.tiangolo.com/) (Python 3.10+)
 - **Database**: [PostgreSQL 16](https://www.postgresql.org/)
@@ -45,7 +45,7 @@ Welcome to the **Smart Marketing Assistant** backend! This system orchestrates a
 
 ---
 
-## 🔌 API Services & Endpoints
+## 🔌API Services & Endpoints
 
 | Service | Port (Host) | Description |
 | :--- | :--- | :--- |
