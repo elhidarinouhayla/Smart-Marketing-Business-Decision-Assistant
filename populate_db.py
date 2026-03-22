@@ -1,8 +1,8 @@
 import sys
 import os
 
-# Set project root
-project_root = "/home/nouhayla/Desktop/simplon_projects/smart_marketing/Smart-Marketing-Business-Decision-Assistant/"
+# Set project root dynamically
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 sys.path.append(project_root)
 
 from backend.app.db.database import SessionLocal, Base, engine
