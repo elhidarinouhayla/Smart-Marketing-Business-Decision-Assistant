@@ -32,6 +32,7 @@ class PredictionResponse(BaseModel):
     probability: float   
     message: str
     success: bool
+    recommendation: Optional[str] = None
     
     class Config:
         from_attributes = True

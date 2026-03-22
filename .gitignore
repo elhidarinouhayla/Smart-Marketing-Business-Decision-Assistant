@@ -3,6 +3,7 @@ __pycache__
 .env
 logs
 data/
+!**/ml/**/data/
 *.log
 airflow_home/
 mlruns/
