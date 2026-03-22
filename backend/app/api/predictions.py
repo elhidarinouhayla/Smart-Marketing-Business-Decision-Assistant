@@ -14,7 +14,7 @@ from typing import List
 router = APIRouter(prefix="/predictions", tags=["Predictions"])
 
 
-# ── Endpoint 1 : lancer une prediction ──
+# lancer une prediction 
 @router.post("/", response_model=PredictionResponse)
 def run_prediction(data: PredictionRequest, db: Session = Depends(get_db), user: dict = Depends(verify_token)):
 
@@ -52,18 +52,18 @@ def run_prediction(data: PredictionRequest, db: Session = Depends(get_db), user:
     }
 
 
-# ── Endpoint 2 : generer le plan (appelle le 1er) ──
+# generer le plan 
 @router.post("/generate-plan", response_model=RecommendationResponse)
 def generate_plan(data: PredictionRequest, db: Session = Depends(get_db), user: dict = Depends(verify_token)):
     print(f"[DEBUG] Generating plan for campaign {data.campaign_id}")
     try:
-        # Appelle directement run_prediction
+        # appelle directement run_prediction
         prediction_result = run_prediction(data, db, user)
         probability = prediction_result["probability"]
         message = prediction_result["message"]
         success = prediction_result["success"]
 
-        # Si succes → pas de plan requis (mais on doit respecter le schema RecommendationResponse)
+        # si succes →pas de plan requis 
         if success:
             print(f"[DEBUG] Campaign {data.campaign_id} is a success, no plan needed.")
             return {
@@ -72,7 +72,7 @@ def generate_plan(data: PredictionRequest, db: Session = Depends(get_db), user: 
                 "advice_text": "Aucun plan requis, la campagne a de bonnes chances de reussir"
             }
 
-        # Si echec → Gemini genere le plan
+        # si echec Gemini genere le plan
         print(f"[DEBUG] Campaign {data.campaign_id} predicted to fail ({probability}). Triggering Gemini...")
         result_gemini = retention_gemini(probability, 0)
         advice_text = "\n".join(result_gemini.retention_plan)
@@ -99,7 +99,7 @@ def generate_plan(data: PredictionRequest, db: Session = Depends(get_db), user: 
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
 
 
-# ── Historique des predictions ──
+# historique des predictions
 @router.get("/", response_model=List[PredictionResponse])
 def get_predictions(db: Session = Depends(get_db), user: dict = Depends(verify_token)):
     predictions = db.query(Prediction).all()
@@ -115,7 +115,7 @@ def get_predictions(db: Session = Depends(get_db), user: dict = Depends(verify_t
     return result
 
 
-# ── Detail d'une prediction ──
+# detail d'une prediction 
 @router.get("/{prediction_id}", response_model=PredictionResponse)
 def get_prediction(prediction_id: str, db: Session = Depends(get_db), user: dict = Depends(verify_token)):
     p = db.query(Prediction).filter(Prediction.id == prediction_id).first()
