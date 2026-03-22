@@ -19,7 +19,7 @@ def run_prediction(data: PredictionRequest, db: Session = Depends(get_db), user:
 
     campaign = db.query(Campaign).filter(Campaign.id == data.campaign_id).first()
     if not campaign:
-        raise HTTPException(status_code=404, detail="Campagne non trouvée")
+        raise HTTPException(status_code=404, detail="Campagne non trouvee")
 
     features = data.model_dump(exclude={"campaign_id"})
     result = predict(features)
@@ -38,24 +38,25 @@ def run_prediction(data: PredictionRequest, db: Session = Depends(get_db), user:
         campaign_id=data.campaign_id
     )
     db.add(new_prediction)
-
-    # Generate automatic recommendation
-    advice_text = None
-    try:
-        reco_result = retention_gemini(probability, prediction_value)
-        advice_text = "\n".join(reco_result.retention_plan)
-
-        new_reco = Recommendation(
-            advice_text=advice_text,
-            campaign_id=data.campaign_id
-        )
-        db.add(new_reco)
-    except Exception as e:
-        print(f"Error generating automatic recommendation: {e}")
-        # advice_text remains None if an error occurs
-
     db.commit()
     db.refresh(new_prediction)
+
+    # auto_generation Gemini si echec predit
+    recommendation_plan = None
+    if probability < 0.5:
+        try:
+            result_gemini = retention_gemini(probability, prediction_value)
+            recommendation_plan = result_gemini.retention_plan  
+            advice_text = "\n".join(result_gemini.retention_plan)
+            new_reco = Recommendation(
+                advice_text=advice_text,
+                campaign_id=data.campaign_id
+            )
+            db.add(new_reco)
+            db.commit()
+            
+        except Exception:
+            pass  # ne pas bloquer la prediction si gemini echoue
 
     return {
         "id": new_prediction.id,
@@ -64,7 +65,7 @@ def run_prediction(data: PredictionRequest, db: Session = Depends(get_db), user:
         "probability": new_prediction.probability,
         "message": message,
         "success": prediction_value == 1,
-        "recommendation": advice_text
+        "recommendation": recommendation_plan
     }
 
 
