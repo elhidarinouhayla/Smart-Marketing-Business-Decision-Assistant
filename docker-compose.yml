@@ -102,6 +102,26 @@ services:
     networks:
       - ml-network
 
+  # frontend Next.js
+  frontend:
+    build:
+      context: ../smart-marketing-frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: always
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8001/api/
+    volumes:
+      - ../smart-marketing-frontend:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - ml-network
+
   # MLflow 
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.17.2
@@ -224,7 +244,7 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
     ports:
-      - "3000:3000"
+      - "3001:3000"
     environment:
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_SECURITY_ADMIN_USER=admin
