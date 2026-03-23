@@ -1,4 +1,6 @@
 import pytest
+from fastapi.testclient import TestClient
+
 
 @pytest.mark.asyncio
 async def test_creer_campagne_simple(client, badge_acces):

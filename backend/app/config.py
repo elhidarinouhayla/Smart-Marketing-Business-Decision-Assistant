@@ -1,4 +1,4 @@
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 import os
 
 from pathlib import Path
@@ -19,3 +19,5 @@ ALGORITHM=os.getenv("ALGORITHM")
 
 
 GEMINI_API_KEY=os.getenv("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    GEMINI_API_KEY = dotenv_values(env_path).get("GEMINI_API_KEY")
