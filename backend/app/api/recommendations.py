@@ -19,7 +19,7 @@ def generate_recommendation(data: RecommendationRequest, db: Session = Depends(g
     # verifier que la campagne existe
     campaign = db.query(Campaign).filter(Campaign.id == data.campaign_id).first()
     if not campaign:
-        raise HTTPException(status_code=404, detail="Campagne non trouvée")
+        raise HTTPException(status_code=404, detail="Campagne non trouvee")
 
 
     result = retention_gemini(data.probability, data.prediction)

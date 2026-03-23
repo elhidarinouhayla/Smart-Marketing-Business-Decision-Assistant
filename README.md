@@ -1,4 +1,4 @@
-#  Smart Marketing Business Decision Assistant (Backend)
+# Smart Marketing Business Decision Assistant (Backend)
 
 Welcome to the **Smart Marketing Assistant** backend! This system orchestrates a full Machine Learning pipeline—from data processing with Airflow and Spark to serving predictions via FastAPI and monitoring with Prometheus/Grafana.
 
@@ -27,7 +27,7 @@ Welcome to the **Smart Marketing Assistant** backend! This system orchestrates a
 
 1.  **Clone the repository**:
     ```bash
-    git clone https://github.com/elhidarinouhayla/Smart-Marketing-Business-Decision-Assistant.git
+    git clone <your-repo-url>
     cd Smart-Marketing-Business-Decision-Assistant
     ```
 
@@ -45,7 +45,7 @@ Welcome to the **Smart Marketing Assistant** backend! This system orchestrates a
 
 ---
 
-## 🔌API Services & Endpoints
+##  API Services & Endpoints
 
 | Service | Port (Host) | Description |
 | :--- | :--- | :--- |

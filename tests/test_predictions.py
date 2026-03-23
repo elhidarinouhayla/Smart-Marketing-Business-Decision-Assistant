@@ -1,38 +1,26 @@
 import pytest
+from fastapi import HTTPException
+from backend.app.services.ml_service import predict
+from backend.app.api.predictions import run_prediction 
 
 
-@pytest.fixture
-async def id_campagne(client, auth_headers):
-    res = await client.post("/api/campaigns/", json={"name": "Promo", "budget": 500, "channel": "Social Media", "status": "Active"}, headers=auth_headers)
-    return res.json()["id"]
+def test_prediction(mocker):
+    mock_db = mocker.Mock()
+    mock_campaign = mocker.Mock(id="8000")
+    mock_db.query.return_value.filter.return_value.first.return_value = mock_campaign
 
+    mocker.patch("backend.app.api.predictions.predict", 
+                 return_value={"prediction": 1, "probability": 0.88})
 
-@pytest.mark.asyncio
-async def test_prediction(client, auth_headers, id_campagne):
- 
-    donnees = {
-        "campaign_id": id_campagne,
-        "Age": 25,
-        "Income": 50000.0,
-        "WebsiteVisits": 10,
-        "SocialShares": 5,
-        "Gender": "Male",
-        "CampaignChannel": "Email",
-        "CampaignType": "Promotion",
-        "AdvertisingPlatform": "Google Ads",
-        "AdvertisingTool": "Search",
-        "SegmentName": "High_Income_Senior",
-        "AdSpend": 100.0,
-        "ClickThroughRate": 0.05,
-        "PagesPerVisit": 2.5,
-        "TimeOnSite": 120.0,
-        "EmailOpens": 2,
-        "EmailClicks": 1,
-        "PreviousPurchases": 3,
-        "LoyaltyPoints": 150
+    mock_data = mocker.Mock()
+    mock_data.campaign_id = "8000"
+    mock_data.model_dump.return_value = {
+        "Age": 56, "Income": 136000, "AdSpend": 5000,
+        "Gender": "Male", "CampaignChannel": "Email", "CampaignType": "Awareness"
     }
-    
-    reponse = await client.post("/api/predictions/", json=donnees, headers=auth_headers)
 
-    assert reponse.status_code == 200
-    assert "message" in reponse.json()
+    from backend.app.api.predictions import run_prediction
+    response = run_prediction(data=mock_data, db=mock_db, user={"sub": "nouhayla"})
+
+    assert response["prediction"] == 1
+    assert response["success"] is True
