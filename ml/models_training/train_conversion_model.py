@@ -45,6 +45,33 @@ def split_data(df, test_size=0.2):
     return train_df, test_df
 
 
+
+def apply_oversampling(train_df):
+    counts = train_df.groupBy(target).count().collect()
+    count_dict = {row[target]: row["count"] for row in counts}
+    
+    
+    majority_count = max(count_dict.values())
+    balanced_parts = []
+
+    for class_val, class_count in count_dict.items():
+        df_class = train_df.filter(col(target) == class_val)
+        if class_count < majority_count:
+            ratio = majority_count / class_count
+            df_class = df_class.sample(withReplacement=True, fraction=ratio, seed=42)
+        balanced_parts.append(df_class)
+
+    balanced_df = balanced_parts[0]
+    for part in balanced_parts[1:]:
+        balanced_df = balanced_df.union(part)
+
+    balanced_df = balanced_df.sample(withReplacement=False, fraction=1.0, seed=42)
+    
+    balanced_df.groupBy(target).count().show()
+    
+    return balanced_df
+
+
 def model_pipeline(num_columns, cat_columns, model):
     
     indexers = [
