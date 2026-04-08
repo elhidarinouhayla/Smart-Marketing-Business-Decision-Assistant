@@ -1,0 +1,1 @@
+{"class":"org.apache.spark.ml.feature.StringIndexer","timestamp":1774308838245,"sparkVersion":"3.5.0","uid":"StringIndexer_efb5a117a607","paramMap":{"outputCol":"CampaignChannel_index","inputCol":"CampaignChannel","handleInvalid":"keep"},"defaultParamMap":{"outputCol":"StringIndexer_efb5a117a607__output","stringOrderType":"frequencyDesc","handleInvalid":"error"}}

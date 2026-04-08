@@ -1,0 +1,266 @@
+services:
+
+  # base de donnees postgreSQL unique
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: airflow
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5434:5432"
+    networks:
+      - ml-network
+
+  
+  # airflow initialisation
+  airflow-init:
+    build:
+      context: .
+      dockerfile: airflow.dockerfile
+    container_name: airflow-init
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@postgres/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
+    volumes:
+      - ./init_airflow.sh:/init_airflow.sh
+    entrypoint: ["/bin/bash", "/init_airflow.sh"]
+    networks:
+      - ml-network
+
+  # airflow principal
+   
+  airflow:
+    build:
+      context: .
+      dockerfile: airflow.dockerfile
+    container_name: airflow
+    restart: always
+    environment:
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://postgres:postgres@postgres/airflow
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'False'
+    volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./requirements.txt:/requirements.txt
+      - ./ml:/opt/airflow/ml
+    command: >
+      bash -c "
+        airflow scheduler &
+        airflow webserver
+      "
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    ports:
+      - "8081:8080"
+    networks:
+      - ml-network
+
+  
+  # backend fastAPI
+  backend:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: backend
+    restart: always
+    environment:
+      - HOST=postgres
+      - DATABASE=airflow
+      - USER=postgres
+      - PASSWORD=postgres
+      - PORT=5432
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - PYTHONPATH=/app
+    volumes:
+      - .:/app
+    working_dir: /app
+    ports:
+      - "8001:8000"
+    command: uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - ml-network
+
+  # frontend Next.js
+  frontend:
+    build:
+      context: ../smart-marketing-frontend
+      dockerfile: Dockerfile
+    container_name: frontend
+    restart: always
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8001/api/
+    volumes:
+      - ../smart-marketing-frontend:/app
+      - /app/node_modules
+      - /app/.next
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - ml-network
+
+  # MLflow 
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.17.2
+    container_name: mlflow
+    ports:
+      - "5001:5000"
+    command: mlflow ui --host 0.0.0.0
+    volumes:
+      - ./mlflow_data:/mlflow
+    working_dir: /mlflow
+    networks:
+      - ml-network
+
+
+# sauvegarder selver_data 
+  save-silver:
+    build:
+      context: .
+      dockerfile: airflow.dockerfile       
+    container_name: save-silver
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+       - ./ml:/opt/airflow/ml                
+  
+    command: >
+      python /opt/airflow/ml/data/save_silver_data.py 
+    networks:
+      - ml-network
+
+
+   
+ #  sauvegarder segment_data 
+  save-segment:
+    build:
+      context: .
+      dockerfile: airflow.dockerfile
+    container_name: save-segment
+    depends_on:
+      save-silver:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./ml:/opt/airflow/ml
+    command: python /opt/airflow/ml/data/save_segment_data.py   
+    networks:
+      - ml-network
+ 
+  # peupler customers et campaigns 
+  populate-tables:
+    build:
+      context: .
+      dockerfile: dockerfile
+    container_name: populate-tables
+    depends_on:
+      save-segment:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    working_dir: /app
+    command: python /app/populate_tables.py
+    networks:
+      - ml-network
+ 
+
+  #  Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+    restart: unless-stopped
+    depends_on:
+      - cadvisor
+      - node-exporter
+      # - ml-pipeline
+    networks:
+      - ml-network
+
+  #  cAdvisor
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: cadvisor
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    networks:
+      - ml-network
+
+  #  Node Exporter
+  node-exporter:
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    ports:
+      - "9100:9100"
+    restart: unless-stopped
+    networks:
+      - ml-network
+
+  #  Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=admin
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    networks:
+      - ml-network
+
+networks:
+  ml-network:
+    driver: bridge
+
+
+
+volumes:
+  postgres-data:
+  prometheus-data:
+  grafana-data:
